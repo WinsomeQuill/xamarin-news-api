@@ -7,7 +7,7 @@ pub(crate) mod user {
         pub id: i32,
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
+        pub about: Option<String>,
         pub password: String,
         pub login: String,
         pub crop_avatar: Option<String>,
@@ -19,7 +19,7 @@ pub(crate) mod user {
     pub struct RegisterUser {
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
+        pub about: Option<String>,
         pub password: String,
         pub login: String,
     }
@@ -29,7 +29,7 @@ pub(crate) mod user {
         pub id: i32,
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
+        pub about: Option<String>,
         pub crop_avatar: Option<String>,
         pub full_avatar: Option<String>,
         pub date_registration: DateTime<Utc>,

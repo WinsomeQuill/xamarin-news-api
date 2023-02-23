@@ -1,11 +1,13 @@
 pub(crate) mod article {
     use chrono::{DateTime, Utc};
     use serde::{Serialize, Deserialize};
+    use crate::postgresql::models::model_user::user::User;
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct Article {
         pub id: i32,
-        pub author_id: i32,
+        #[sqlx(flatten)]
+        pub author: User,
         pub image: String,
         pub title: String,
         pub description: String,

@@ -44,7 +44,7 @@ pub mod postgresql_manager {
                     id serial4 primary key,
                     first_name varchar(64) not null,
                     last_name varchar(64) not null,
-                    description varchar(256) null,
+                    about varchar(256) null,
                     password varchar(64) not null,
                     login varchar(64) not null,
                     full_avatar text null,
@@ -90,12 +90,12 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
         pub async fn insert_user(&self, user: &RegisterUser) -> Result<(), sqlx::Error> {
             let _ = sqlx::query("
-                INSERT INTO users (first_name, last_name, description, password, login)
+                INSERT INTO users (first_name, last_name, about, password, login)
                 VALUES ($1, $2, $3, $4, $5)
             ")
                 .bind(&user.first_name)
                 .bind(&user.last_name)
-                .bind(&user.description)
+                .bind(&user.about)
                 .bind(&user.password)
                 .bind(&user.login)
                 .execute(&self.pool).await?;
@@ -321,7 +321,8 @@ pub mod postgresql_manager {
         pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
             let articles = sqlx::query_as::<_, Article>("
                 SELECT *
-                FROM articles;
+                FROM articles as a, users as u
+                WHERE a.author_id = u.id;
             ")
                 .fetch_all(&self.pool)
                 .await?;
