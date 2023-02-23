@@ -5,8 +5,13 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
+    use crate::postgresql::models::model_article::article::{
+        Article,
+        CropArticle,
+        Comment,
+    };
 
-    
+
     #[derive(Clone)]
     pub struct Connect {
         pub pool: Pool<Postgres>
@@ -51,6 +56,7 @@ pub mod postgresql_manager {
                     id serial4 PRIMARY KEY,
                     author_id int4 not null references users(id) on delete cascade,
                     image text not null,
+                    title varchar(64) not null,
                     description varchar(1024) not null,
                     publish_date timestamptz not null default now()::timestamp with time zone::timestamp,
                     likes int4 null default 0,
@@ -81,7 +87,7 @@ pub mod postgresql_manager {
         /// Структуру `RegisterUser`
         ///
         /// ### Возвращает:
-        /// Пустой [`Ok`] или [`sqlx::Error`]
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
         pub async fn insert_user(&self, user: &RegisterUser) -> Result<(), sqlx::Error> {
             let _ = sqlx::query("
                 INSERT INTO users (first_name, last_name, description, password, login)
@@ -283,9 +289,101 @@ pub mod postgresql_manager {
             ")
                 .bind(author_user_id)
                 .bind(follower_user_id)
-                .fetch_one(&self.pool).await?;
+                .execute(&self.pool).await?;
 
             Ok(())
+        }
+
+        /// Создаем запись в базе данных
+        ///
+        /// ### Принимает:
+        /// Структуру `Article`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn insert_article(&self, article: &CropArticle) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                INSERT INTO articles
+                (author_id, image, title, description)
+                VALUES($1, $2, $3, $4);
+            ")
+                .bind(article.author_id)
+                .bind(&article.image)
+                .bind(&article.title)
+                .bind(&article.description)
+                .execute(&self.pool).await?;
+            Ok(())
+        }
+
+        /// Получить записи из базе данных
+        /// ### Возвращает:
+        /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
+        pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
+            let articles = sqlx::query_as::<_, Article>("
+                SELECT *
+                FROM articles;
+            ")
+                .fetch_all(&self.pool)
+                .await?;
+            Ok(articles)
+        }
+
+        /// Получить данные об записи
+        /// ### Принимает:
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то структура `Article`. При ошибки [`sqlx::Error`]
+        pub async fn get_article_info(&self, article_id: i32) -> Result<Article, sqlx::Error> {
+            let article = sqlx::query_as::<_, Article>("
+                SELECT *
+                FROM articles
+                WHERE id = $1;
+            ")
+                .bind(article_id)
+                .fetch_one(&self.pool)
+                .await?;
+
+            Ok(article)
+        }
+
+        /// Удалить запись из базы данных
+        /// ### Принимает:
+        ///
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn remove_article(&self, article_id: i32) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                DELETE FROM
+                articles
+                WHERE id = $1;
+            ")
+                .bind(article_id)
+                .execute(&self.pool).await?;
+
+            Ok(())
+        }
+
+        /// Проверка, является ли пользовать создателем записи
+        /// ### Принимает:
+        ///
+        /// ID пользователя, ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], `true` - пользователь является автором записи, иначе `false`. При ошибки [`sqlx::Error`]
+        pub async fn is_user_author_article(&self, user_id: i32, article_id: i32) -> Result<bool, sqlx::Error> {
+            let row = sqlx::query("
+                SELECT id FROM
+                articles
+                WHERE author_id = $1 AND id = $2;
+            ")
+                .bind(user_id)
+                .bind(article_id)
+                .fetch_one(&self.pool).await?;
+
+            Ok(row.try_get::<i32, _>("id").is_ok())
         }
     }
 }

@@ -13,6 +13,12 @@ use crate::services::service_user::user::{
     remove_following_user,
 };
 
+use crate::services::service_article::article::{
+    insert_article,
+    remove_article,
+    get_articles,
+};
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -38,6 +44,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(data.clone())
+            // User service
             .service(insert_user)
             .service(get_profile_avatar)
             .service(login_user)
@@ -47,6 +54,10 @@ async fn main() -> std::io::Result<()> {
             .service(user_count_followers)
             .service(following_user)
             .service(remove_following_user)
+            // Article service
+            .service(insert_article)
+            .service(remove_article)
+            .service(get_articles)
             .default_service(web::to(|| {
                 HttpResponse::NotFound()
             }))
