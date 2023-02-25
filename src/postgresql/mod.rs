@@ -386,6 +386,27 @@ pub mod postgresql_manager {
 
             Ok(row.try_get::<i32, _>("id").is_ok())
         }
+
+        /// Получение записей определенного пользователя
+        /// ### Принимает:
+        ///
+        /// ID пользователя
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], `Vec<Article>`. При ошибки [`sqlx::Error`]
+        pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
+            let row = sqlx::query_as::<_, Article>("
+                SELECT a.id, a.author_id, a.image, a.title, a.description, a.publish_date, a.likes, a.dislikes,
+                u.id, u.first_name, u.last_name, u.about, u.password, u.login, u.full_avatar, u.crop_avatar, u.date_registration
+                FROM articles as a, users as u
+                WHERE a.author_id = u.id
+                AND u.id = $1;
+            ")
+                .bind(user_id)
+                .fetch_all(&self.pool).await?;
+
+            Ok(row)
+        }
     }
 }
 

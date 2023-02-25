@@ -186,7 +186,7 @@ pub mod user {
             json_success(result)
         )
     }
-    
+
     #[get("/get-profile-avatar")]
     pub async fn get_profile_avatar(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
         let login = match get_query_param::<String>(&req, "login").await {

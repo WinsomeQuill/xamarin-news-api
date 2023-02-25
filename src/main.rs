@@ -17,6 +17,7 @@ use crate::services::service_article::article::{
     insert_article,
     remove_article,
     get_articles,
+    get_articles_from_user,
 };
 
 #[actix_web::main]
@@ -58,6 +59,7 @@ async fn main() -> std::io::Result<()> {
             .service(insert_article)
             .service(remove_article)
             .service(get_articles)
+            .service(get_articles_from_user)
             .default_service(web::to(|| {
                 HttpResponse::NotFound()
             }))

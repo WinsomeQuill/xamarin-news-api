@@ -79,6 +79,33 @@ pub mod article {
         )
     }
 
+    #[get("/get-articles-from-user")]
+    pub async fn get_articles_from_user(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let articles = match conn.get_articles_from_user(user_id).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][get-articles-from-user] >>> conn.get_articles_from_user",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error!")
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(articles)
+        )
+    }
+
     #[post("/remove-article")]
     pub async fn remove_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
         let body = match read_body_bytes(&mut payload).await {
