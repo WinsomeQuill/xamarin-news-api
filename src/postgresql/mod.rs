@@ -320,7 +320,8 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
             let articles = sqlx::query_as::<_, Article>("
-                SELECT *
+                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id;
             ")
@@ -337,8 +338,9 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то структура `Article`. При ошибки [`sqlx::Error`]
         pub async fn get_article_info(&self, article_id: i32) -> Result<Article, sqlx::Error> {
             let article = sqlx::query_as::<_, Article>("
-                SELECT *
-                FROM articles
+                SELECT id AS article_id, author_id, image, title,
+                description, publish_date, likes, dislikes
+                FROM articles AS a
                 WHERE id = $1;
             ")
                 .bind(article_id)
@@ -396,8 +398,8 @@ pub mod postgresql_manager {
         /// Если [`Ok`], `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
             let row = sqlx::query_as::<_, Article>("
-                SELECT a.id, a.author_id, a.image, a.title, a.description, a.publish_date, a.likes, a.dislikes,
-                u.id, u.first_name, u.last_name, u.about, u.password, u.login, u.full_avatar, u.crop_avatar, u.date_registration
+                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id
                 AND u.id = $1;

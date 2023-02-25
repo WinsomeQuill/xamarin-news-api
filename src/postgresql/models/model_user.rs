@@ -4,6 +4,7 @@ pub(crate) mod user {
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct FullUser {
+        #[sqlx(rename = "user_id")]
         pub id: i32,
         pub first_name: String,
         pub last_name: String,
@@ -26,6 +27,7 @@ pub(crate) mod user {
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct User {
+        #[sqlx(rename = "user_id")]
         pub id: i32,
         pub first_name: String,
         pub last_name: String,

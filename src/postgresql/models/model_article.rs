@@ -5,6 +5,7 @@ pub(crate) mod article {
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct Article {
+        #[sqlx(rename = "article_id")]
         pub id: i32,
         #[sqlx(flatten)]
         pub author: User,
