@@ -9,7 +9,7 @@ pub(crate) mod article {
         pub id: i32,
         #[sqlx(flatten)]
         pub author: User,
-        pub image: String,
+        pub image: Vec<u8>,
         pub title: String,
         pub description: String,
         pub publish_date: DateTime<Utc>,

@@ -128,7 +128,7 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то вернется структура `User`. При ошибки [`sqlx::Error`]
         pub async fn get_user_by_login_and_pass(&self, login: &str, password: &str) -> Result<User, sqlx::Error> {
             let row = sqlx::query_as::<_, User>("
-                SELECT *
+                SELECT id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM users
                 WHERE login = $1 AND password = $2
             ")
@@ -173,7 +173,7 @@ pub mod postgresql_manager {
         ///
         /// ### Возвращает:
         /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
-        pub async fn set_avatar_by_login(&self, login: &str, crop_avatar: &str, full_avatar: &str) -> Result<(), sqlx::Error> {
+        pub async fn set_avatar_by_login(&self, login: &str, crop_avatar: &Vec<u8>, full_avatar: &Vec<u8>) -> Result<(), sqlx::Error> {
             let _ = sqlx::query("
                 UPDATE users
                 SET crop_avatar = $2, full_avatar = $3
@@ -195,7 +195,7 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то структура `User`. При ошибки [`sqlx::Error`]
         pub async fn get_user_info_by_id(&self, id: i32) -> Result<User, sqlx::Error> {
             let row = sqlx::query_as::<_, User>("
-                SELECT *
+                SELECT id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM users
                 WHERE id = $1
             ")
