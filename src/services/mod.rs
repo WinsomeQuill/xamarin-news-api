@@ -7,8 +7,6 @@ use serde_json::{Value, json};
 use futures::StreamExt;
 use qstring::QString;
 
-pub mod service_user;
-
 const MAX_SIZE_BUFFER_REQUEST: usize = 16_777_216; // максимальный размер буфера - 256кб
 
 pub(crate) fn json_error<T>(message: T) -> Value
@@ -54,3 +52,6 @@ pub(crate) async fn get_query_param<T: FromStr>(req: &HttpRequest, query_key: &s
 
     Ok(result)
 }
+
+pub mod service_user;
+pub mod service_article;

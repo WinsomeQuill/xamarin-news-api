@@ -4,14 +4,15 @@ pub(crate) mod user {
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct FullUser {
+        #[sqlx(rename = "user_id")]
         pub id: i32,
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
+        pub about: Option<String>,
         pub password: String,
         pub login: String,
-        pub crop_avatar: Option<String>,
-        pub full_avatar: Option<String>,
+        pub crop_avatar: Option<Vec<u8>>,
+        pub full_avatar: Option<Vec<u8>>,
         pub date_registration: DateTime<Utc>,
     }
 
@@ -19,19 +20,20 @@ pub(crate) mod user {
     pub struct RegisterUser {
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
+        pub about: Option<String>,
         pub password: String,
         pub login: String,
     }
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct User {
+        #[sqlx(rename = "user_id")]
         pub id: i32,
         pub first_name: String,
         pub last_name: String,
-        pub description: Option<String>,
-        pub crop_avatar: Option<String>,
-        pub full_avatar: Option<String>,
+        pub about: Option<String>,
+        pub crop_avatar: Option<Vec<u8>>,
+        pub full_avatar: Option<Vec<u8>>,
         pub date_registration: DateTime<Utc>,
     }
 }

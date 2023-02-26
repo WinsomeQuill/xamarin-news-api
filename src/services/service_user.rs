@@ -1,4 +1,5 @@
 pub mod user {
+    use std::io::Write;
     use crate::postgresql::models::model_user::user::{
         RegisterUser,
     };
@@ -101,7 +102,7 @@ pub mod user {
 
     #[get("/user-info")]
     pub async fn user_info(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
-        let id = match get_query_param::<i32>(&req, "id").await {
+        let id = match get_query_param::<i32>(&req, "user_id").await {
             Ok(o) => o,
             Err(e) => return HttpResponse::BadRequest().json(
                 json_error(e)
@@ -128,7 +129,7 @@ pub mod user {
 
     #[get("/user-count-followers")]
     pub async fn user_count_followers(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
-        let id = match get_query_param::<i32>(&req, "id").await {
+        let id = match get_query_param::<i32>(&req, "user_id").await {
             Ok(o) => o,
             Err(e) => return HttpResponse::Ok().json(
                 json_error(e)
@@ -186,7 +187,8 @@ pub mod user {
             json_success(result)
         )
     }
-    
+
+    #[deprecated(since = "0.1.2", note = "Не используется так-как есть запрос user-info")]
     #[get("/get-profile-avatar")]
     pub async fn get_profile_avatar(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
         let login = match get_query_param::<String>(&req, "login").await {
@@ -244,8 +246,8 @@ pub mod user {
             },
         };
 
-        let crop_avatar = value["crop_avatar"].as_str().unwrap();
-        let full_avatar = value["full_avatar"].as_str().unwrap();
+        let crop_avatar = base64::decode(value["crop_avatar"].as_str().unwrap()).unwrap();
+        let full_avatar = base64::decode(value["full_avatar"].as_str().unwrap()).unwrap();
         let login = value["login"].as_str().unwrap();
 
         match conn.set_avatar_by_login(login, &crop_avatar, &full_avatar).await {

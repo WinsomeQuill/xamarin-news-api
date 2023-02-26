@@ -5,8 +5,13 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
+    use crate::postgresql::models::model_article::article::{
+        Article,
+        CropArticle,
+        Comment,
+    };
 
-    
+
     #[derive(Clone)]
     pub struct Connect {
         pub pool: Pool<Postgres>
@@ -39,7 +44,7 @@ pub mod postgresql_manager {
                     id serial4 primary key,
                     first_name varchar(64) not null,
                     last_name varchar(64) not null,
-                    description varchar(256) null,
+                    about varchar(256) null,
                     password varchar(64) not null,
                     login varchar(64) not null,
                     full_avatar text null,
@@ -51,6 +56,7 @@ pub mod postgresql_manager {
                     id serial4 PRIMARY KEY,
                     author_id int4 not null references users(id) on delete cascade,
                     image text not null,
+                    title varchar(64) not null,
                     description varchar(1024) not null,
                     publish_date timestamptz not null default now()::timestamp with time zone::timestamp,
                     likes int4 null default 0,
@@ -81,15 +87,15 @@ pub mod postgresql_manager {
         /// Структуру `RegisterUser`
         ///
         /// ### Возвращает:
-        /// Пустой [`Ok`] или [`sqlx::Error`]
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
         pub async fn insert_user(&self, user: &RegisterUser) -> Result<(), sqlx::Error> {
             let _ = sqlx::query("
-                INSERT INTO users (first_name, last_name, description, password, login)
+                INSERT INTO users (first_name, last_name, about, password, login)
                 VALUES ($1, $2, $3, $4, $5)
             ")
                 .bind(&user.first_name)
                 .bind(&user.last_name)
-                .bind(&user.description)
+                .bind(&user.about)
                 .bind(&user.password)
                 .bind(&user.login)
                 .execute(&self.pool).await?;
@@ -122,7 +128,7 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то вернется структура `User`. При ошибки [`sqlx::Error`]
         pub async fn get_user_by_login_and_pass(&self, login: &str, password: &str) -> Result<User, sqlx::Error> {
             let row = sqlx::query_as::<_, User>("
-                SELECT *
+                SELECT id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM users
                 WHERE login = $1 AND password = $2
             ")
@@ -167,7 +173,7 @@ pub mod postgresql_manager {
         ///
         /// ### Возвращает:
         /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
-        pub async fn set_avatar_by_login(&self, login: &str, crop_avatar: &str, full_avatar: &str) -> Result<(), sqlx::Error> {
+        pub async fn set_avatar_by_login(&self, login: &str, crop_avatar: &Vec<u8>, full_avatar: &Vec<u8>) -> Result<(), sqlx::Error> {
             let _ = sqlx::query("
                 UPDATE users
                 SET crop_avatar = $2, full_avatar = $3
@@ -189,7 +195,7 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то структура `User`. При ошибки [`sqlx::Error`]
         pub async fn get_user_info_by_id(&self, id: i32) -> Result<User, sqlx::Error> {
             let row = sqlx::query_as::<_, User>("
-                SELECT *
+                SELECT id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM users
                 WHERE id = $1
             ")
@@ -283,9 +289,125 @@ pub mod postgresql_manager {
             ")
                 .bind(author_user_id)
                 .bind(follower_user_id)
-                .fetch_one(&self.pool).await?;
+                .execute(&self.pool).await?;
 
             Ok(())
+        }
+
+        /// Создаем запись в базе данных
+        ///
+        /// ### Принимает:
+        /// Структуру `Article`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn insert_article(&self, article: &CropArticle) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                INSERT INTO articles
+                (author_id, image, title, description)
+                VALUES($1, $2, $3, $4);
+            ")
+                .bind(article.author_id)
+                .bind(&article.image)
+                .bind(&article.title)
+                .bind(&article.description)
+                .execute(&self.pool).await?;
+            Ok(())
+        }
+
+        /// Получить записи из базе данных
+        /// ### Возвращает:
+        /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
+        pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
+            let articles = sqlx::query_as::<_, Article>("
+                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
+                FROM articles as a, users as u
+                WHERE a.author_id = u.id;
+            ")
+                .fetch_all(&self.pool)
+                .await?;
+            Ok(articles)
+        }
+
+        /// Получить данные об записи
+        /// ### Принимает:
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то структура `Article`. При ошибки [`sqlx::Error`]
+        pub async fn get_article_info(&self, article_id: i32) -> Result<Article, sqlx::Error> {
+            let article = sqlx::query_as::<_, Article>("
+                SELECT id AS article_id, author_id, image, title,
+                description, publish_date, likes, dislikes
+                FROM articles AS a
+                WHERE id = $1;
+            ")
+                .bind(article_id)
+                .fetch_one(&self.pool)
+                .await?;
+
+            Ok(article)
+        }
+
+        /// Удалить запись из базы данных
+        /// ### Принимает:
+        ///
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn remove_article(&self, article_id: i32) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                DELETE FROM
+                articles
+                WHERE id = $1;
+            ")
+                .bind(article_id)
+                .execute(&self.pool).await?;
+
+            Ok(())
+        }
+
+        /// Проверка, является ли пользовать создателем записи
+        /// ### Принимает:
+        ///
+        /// ID пользователя, ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], `true` - пользователь является автором записи, иначе `false`. При ошибки [`sqlx::Error`]
+        pub async fn is_user_author_article(&self, user_id: i32, article_id: i32) -> Result<bool, sqlx::Error> {
+            let row = sqlx::query("
+                SELECT id FROM
+                articles
+                WHERE author_id = $1 AND id = $2;
+            ")
+                .bind(user_id)
+                .bind(article_id)
+                .fetch_one(&self.pool).await?;
+
+            Ok(row.try_get::<i32, _>("id").is_ok())
+        }
+
+        /// Получение записей определенного пользователя
+        /// ### Принимает:
+        ///
+        /// ID пользователя
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], `Vec<Article>`. При ошибки [`sqlx::Error`]
+        pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
+            let row = sqlx::query_as::<_, Article>("
+                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
+                FROM articles as a, users as u
+                WHERE a.author_id = u.id
+                AND u.id = $1;
+            ")
+                .bind(user_id)
+                .fetch_all(&self.pool).await?;
+
+            Ok(row)
         }
     }
 }
