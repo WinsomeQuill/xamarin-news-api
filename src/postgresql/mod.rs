@@ -28,12 +28,26 @@ pub mod postgresql_manager {
         /// ### Возрващает:
         /// Структуру [`Connet`] или [`sqlx::Error`]
         pub async fn new(user: &str, password: &str, host: &str, port: u16, db_name: &str) -> Result<Connect, sqlx::Error> {
-            let pool = PgPoolOptions::new()
-                .max_connections(5)
-                .connect(
-                    &format!("postgres://{}:{}@{}:{}/{}",
+            let mut pool: Result<Pool<Postgres>, sqlx::Error>;
+            loop {
+                pool = PgPoolOptions::new()
+                    .max_connections(5)
+                    .acquire_timeout(std::time::Duration::from_millis(10000))
+                    .connect(
+                        &format!("postgres://{}:{}@{}:{}/{}",
                                  &user, password, host, port, db_name)
-                ).await?;
+                    ).await;
+
+                if pool.is_ok() {
+                    break;
+                }
+
+                println!("[POSTGRES SQL DB] Timeout connect! Try again...");
+                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+            }
+
+            let pool = pool.unwrap();
+
             Ok(Connect { pool })
         }
 
