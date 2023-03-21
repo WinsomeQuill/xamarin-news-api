@@ -1,15 +1,13 @@
 pub mod postgresql_manager {
+    use base64::Engine;
+    use base64::engine::general_purpose;
     use sqlx::{Executor, Pool, Postgres, postgres::PgPoolOptions, Row};
     use super::models;
     use models::model_user::user::{
         User,
         RegisterUser,
     };
-    use crate::postgresql::models::model_article::article::{
-        Article,
-        CropArticle,
-        Comment,
-    };
+    use crate::postgresql::models::model_article::article::{Article, InsertArticle};
 
 
     #[derive(Clone)]
@@ -28,12 +26,26 @@ pub mod postgresql_manager {
         /// ### Возрващает:
         /// Структуру [`Connet`] или [`sqlx::Error`]
         pub async fn new(user: &str, password: &str, host: &str, port: u16, db_name: &str) -> Result<Connect, sqlx::Error> {
-            let pool = PgPoolOptions::new()
-                .max_connections(5)
-                .connect(
-                    &format!("postgres://{}:{}@{}:{}/{}",
+            let mut pool: Result<Pool<Postgres>, sqlx::Error>;
+            loop {
+                pool = PgPoolOptions::new()
+                    .max_connections(5)
+                    .acquire_timeout(std::time::Duration::from_millis(10000))
+                    .connect(
+                        &format!("postgres://{}:{}@{}:{}/{}",
                                  &user, password, host, port, db_name)
-                ).await?;
+                    ).await;
+
+                if pool.is_ok() {
+                    break;
+                }
+
+                println!("[POSTGRES SQL DB] Timeout connect! Try again...");
+                tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+            }
+
+            let pool = pool.unwrap();
+
             Ok(Connect { pool })
         }
 
@@ -301,14 +313,15 @@ pub mod postgresql_manager {
         ///
         /// ### Возвращает:
         /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
-        pub async fn insert_article(&self, article: &CropArticle) -> Result<(), sqlx::Error> {
+        pub async fn insert_article(&self, article: &InsertArticle) -> Result<(), sqlx::Error> {
+            let image = general_purpose::STANDARD.decode(&article.image).unwrap();
             let _ = sqlx::query("
                 INSERT INTO articles
                 (author_id, image, title, description)
                 VALUES($1, $2, $3, $4);
             ")
                 .bind(article.author_id)
-                .bind(&article.image)
+                .bind(&image)
                 .bind(&article.title)
                 .bind(&article.description)
                 .execute(&self.pool).await?;

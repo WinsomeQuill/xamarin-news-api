@@ -20,6 +20,14 @@ pub(crate) mod article {
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct CropArticle {
         pub author_id: i32,
+        pub image: Vec<u8>,
+        pub title: String,
+        pub description: String,
+    }
+
+    #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize)]
+    pub struct InsertArticle {
+        pub author_id: i32,
         pub image: String,
         pub title: String,
         pub description: String,

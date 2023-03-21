@@ -34,7 +34,9 @@ async fn main() -> std::io::Result<()> {
 
     let postgres = Connect::new(&user, &password, &host, port, &db_name)
         .await
-        .expect("[POSTGRES SQL DB] Error connect");
+        .expect("[PostgresSQL] Fatal error!");
+
+    println!("[PostgresSQL] Connected!");
 
     postgres.create_tables()
         .await
