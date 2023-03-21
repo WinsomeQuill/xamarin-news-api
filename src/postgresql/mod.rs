@@ -1,15 +1,13 @@
 pub mod postgresql_manager {
+    use base64::Engine;
+    use base64::engine::general_purpose;
     use sqlx::{Executor, Pool, Postgres, postgres::PgPoolOptions, Row};
     use super::models;
     use models::model_user::user::{
         User,
         RegisterUser,
     };
-    use crate::postgresql::models::model_article::article::{
-        Article,
-        CropArticle,
-        Comment,
-    };
+    use crate::postgresql::models::model_article::article::{Article, CropArticle, Comment, InsertArticle};
 
 
     #[derive(Clone)]
@@ -315,14 +313,15 @@ pub mod postgresql_manager {
         ///
         /// ### Возвращает:
         /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
-        pub async fn insert_article(&self, article: &CropArticle) -> Result<(), sqlx::Error> {
+        pub async fn insert_article(&self, article: &InsertArticle) -> Result<(), sqlx::Error> {
+            let image = general_purpose::STANDARD.decode(&article.image).unwrap();
             let _ = sqlx::query("
                 INSERT INTO articles
                 (author_id, image, title, description)
                 VALUES($1, $2, $3, $4);
             ")
                 .bind(article.author_id)
-                .bind(&article.image)
+                .bind(&image)
                 .bind(&article.title)
                 .bind(&article.description)
                 .execute(&self.pool).await?;

@@ -17,6 +17,8 @@ pub mod user {
         Responder,
         HttpResponse,
     };
+    use base64::Engine;
+    use base64::engine::general_purpose;
     use crate::postgresql::postgresql_manager::Connect;
     use crate::logger::log::{Level, log};
     use serde_json::{json, Value};
@@ -246,8 +248,8 @@ pub mod user {
             },
         };
 
-        let crop_avatar = base64::decode(value["crop_avatar"].as_str().unwrap()).unwrap();
-        let full_avatar = base64::decode(value["full_avatar"].as_str().unwrap()).unwrap();
+        let crop_avatar = general_purpose::STANDARD.decode(value["crop_avatar"].as_str().unwrap()).unwrap();
+        let full_avatar = general_purpose::STANDARD.decode(value["full_avatar"].as_str().unwrap()).unwrap();
         let login = value["login"].as_str().unwrap();
 
         match conn.set_avatar_by_login(login, &crop_avatar, &full_avatar).await {
