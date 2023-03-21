@@ -1,5 +1,4 @@
 pub mod user {
-    use std::io::Write;
     use crate::postgresql::models::model_user::user::{
         RegisterUser,
     };

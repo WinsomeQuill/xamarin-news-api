@@ -7,7 +7,7 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
-    use crate::postgresql::models::model_article::article::{Article, CropArticle, Comment, InsertArticle};
+    use crate::postgresql::models::model_article::article::{Article, InsertArticle};
 
 
     #[derive(Clone)]

@@ -1,8 +1,6 @@
 pub(crate) mod article {
-    use base64::Engine;
-    use base64::engine::general_purpose;
     use chrono::{DateTime, Utc};
-    use serde::{Serialize, Deserialize, Serializer};
+    use serde::{Serialize, Deserialize};
     use crate::postgresql::models::model_user::user::User;
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]

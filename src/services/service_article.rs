@@ -15,8 +15,8 @@ pub mod article {
     };
     use crate::postgresql::postgresql_manager::Connect;
     use crate::logger::log::{Level, log};
-    use serde_json::{json, Value};
-    use crate::postgresql::models::model_article::article::{Article, Comment, CropArticle, InsertArticle};
+    use serde_json::Value;
+    use crate::postgresql::models::model_article::article::InsertArticle;
 
     #[post("/insert-article")]
     pub async fn insert_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
@@ -56,7 +56,7 @@ pub mod article {
     }
 
     #[get("/get-articles")]
-    pub async fn get_articles(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+    pub async fn get_articles(conn: web::Data<Connect>) -> impl Responder {
         let articles = match conn.get_articles().await {
             Ok(o) => o,
             Err(e) => {
