@@ -36,9 +36,16 @@ pub(crate) mod article {
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
     pub struct Comment {
         pub id: i32,
-        pub user_id: i32,
-        pub article_id: String,
+        #[sqlx(flatten)]
+        pub author: User,
         pub message: String,
         pub publish_date: DateTime<Utc>,
+    }
+
+    #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize)]
+    pub struct InsertComment {
+        pub user_id: i32,
+        pub article_id: i32,
+        pub message: String,
     }
 }

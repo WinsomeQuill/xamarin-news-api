@@ -7,7 +7,7 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
-    use crate::postgresql::models::model_article::article::{Article, InsertArticle};
+    use crate::postgresql::models::model_article::article::{Article, Comment, InsertArticle, InsertComment};
 
 
     #[derive(Clone)]
@@ -76,6 +76,7 @@ pub mod postgresql_manager {
                 );
 
                 create table if not exists articles_comments (
+                    id serial4 PRIMARY KEY,
                     users_id int4 not null references users(id) on delete cascade,
                     articles_id int4 not null references articles(id) on delete cascade,
                     publish_date timestamptz not null default now()::timestamp with time zone::timestamp,
@@ -388,7 +389,7 @@ pub mod postgresql_manager {
         /// ID пользователя, ID записи
         ///
         /// ### Возвращает:
-        /// Если [`Ok`], `true` - пользователь является автором записи, иначе `false`. При ошибки [`sqlx::Error`]
+        /// Если [`Ok`], то `true` - пользователь является автором записи, иначе `false`. При ошибки [`sqlx::Error`]
         pub async fn is_user_author_article(&self, user_id: i32, article_id: i32) -> Result<bool, sqlx::Error> {
             let row = sqlx::query("
                 SELECT id FROM
@@ -408,7 +409,7 @@ pub mod postgresql_manager {
         /// ID пользователя
         ///
         /// ### Возвращает:
-        /// Если [`Ok`], `Vec<Article>`. При ошибки [`sqlx::Error`]
+        /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
             let row = sqlx::query_as::<_, Article>("
                 SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
@@ -418,6 +419,45 @@ pub mod postgresql_manager {
                 AND u.id = $1;
             ")
                 .bind(user_id)
+                .fetch_all(&self.pool).await?;
+
+            Ok(row)
+        }
+
+        /// Создаем комментарий к записи в базе данных
+        ///
+        /// ### Принимает:
+        /// Структуру `InsertComment`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn insert_comment_to_article(&self, comment: &InsertComment) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                INSERT INTO articles_comments
+                (users_id, articles_id, message)
+                VALUES($1, $2, $3);
+            ")
+                .bind(comment.user_id)
+                .bind(comment.article_id)
+                .bind(&comment.message)
+                .execute(&self.pool).await?;
+            Ok(())
+        }
+
+        /// Получение комментариев к записи
+        /// ### Принимает:
+        ///
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `Vec<Comment>`. При ошибки [`sqlx::Error`]
+        pub async fn get_comments_from_article(&self, article_id: i32) -> Result<Vec<Comment>, sqlx::Error> {
+            let row = sqlx::query_as::<_, Comment>("
+                SELECT ac.id AS id, u.id AS user_id, first_name, last_name, about, crop_avatar, full_avatar, date_registration, message, publish_date
+                FROM articles_comments AS ac, users AS u
+                WHERE ac.users_id = u.id AND ac.articles_id = $1;
+            ")
+                .bind(article_id)
                 .fetch_all(&self.pool).await?;
 
             Ok(row)

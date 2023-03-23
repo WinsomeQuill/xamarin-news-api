@@ -16,7 +16,7 @@ pub mod article {
     use crate::postgresql::postgresql_manager::Connect;
     use crate::logger::log::{Level, log};
     use serde_json::Value;
-    use crate::postgresql::models::model_article::article::InsertArticle;
+    use crate::postgresql::models::model_article::article::{InsertArticle, InsertComment};
 
     #[post("/insert-article")]
     pub async fn insert_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
@@ -164,6 +164,66 @@ pub mod article {
 
         HttpResponse::Ok().json(
             json_success("Success")
+        )
+    }
+
+    #[post("/insert-article-comment")]
+    pub async fn insert_article_comment(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
+        let body = match read_body_bytes(&mut payload).await {
+            Ok(o) => o,
+            Err(_) => return HttpResponse::Ok().json(
+                json_error("Request overflow!")
+            )
+        };
+
+        let insert_comment = match serde_json::from_slice::<InsertComment>(&body) {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[POST][insert-article-comment] >>> serde_json::from_slice::<InsertComment>",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error request!")
+                )
+            },
+        };
+
+        if let Err(sqlx::Error::RowNotFound) = conn.insert_comment_to_article(&insert_comment).await {
+            return HttpResponse::Ok().json(
+                json_error("Article not found!")
+            );
+        }
+
+        HttpResponse::Ok().json(
+            json_success("Success")
+        )
+    }
+
+    #[get("/get-article-comments")]
+    pub async fn get_article_comments(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let article_id = match get_query_param::<i32>(&req, "article_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let articles = match conn.get_comments_from_article(article_id).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][get-article-comments] >>> conn.get_comments_from_article",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error!")
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(articles)
         )
     }
 }
