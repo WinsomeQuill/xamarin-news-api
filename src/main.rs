@@ -19,6 +19,11 @@ use crate::services::service_article::article::{insert_article, remove_article, 
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
+    let localhost = std::env::var("LOCALHOST").expect("LOCALHOST is invalid!");
+    let localhost_port = std::env::var("LOCALHOST_PORT").expect("LOCALHOST_PORT is invalid!")
+        .parse::<u16>()
+        .expect("LOCALHOST_PORT is not integer!");
+
     let user = std::env::var("POSTGRES_DB_USER").expect("POSTGRES_DB_USER is invalid!");
     let password = std::env::var("POSTGRES_DB_PASSWORD").expect("POSTGRES_DB_PASSWORD is invalid!");
     let host = std::env::var("POSTGRES_DB_HOST").expect("POSTGRES_DB_HOST is invalid!");
@@ -63,7 +68,7 @@ async fn main() -> std::io::Result<()> {
                 HttpResponse::NotFound()
             }))
         })
-        .bind(("192.168.2.104", 27000))?
+        .bind((localhost, localhost_port))?
         .run()
         .await
 }
