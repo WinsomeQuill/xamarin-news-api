@@ -334,7 +334,8 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
             let articles = sqlx::query_as::<_, Article>("
-                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                SELECT a.id AS article_id, image, title, description AS full_description,
+                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date, likes, dislikes,
                 u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id;
@@ -353,7 +354,7 @@ pub mod postgresql_manager {
         pub async fn get_article_info(&self, article_id: i32) -> Result<Article, sqlx::Error> {
             let article = sqlx::query_as::<_, Article>("
                 SELECT id AS article_id, author_id, image, title,
-                description, publish_date, likes, dislikes
+                description AS full_description, concat(left(description, 150), '...') AS crop_description, publish_date, likes, dislikes
                 FROM articles AS a
                 WHERE id = $1;
             ")
@@ -412,7 +413,8 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
             let row = sqlx::query_as::<_, Article>("
-                SELECT a.id AS article_id, image, title, description, publish_date, likes, dislikes,
+                SELECT a.id AS article_id, image, title, description AS full_description,
+                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date, likes, dislikes,
                 u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id
