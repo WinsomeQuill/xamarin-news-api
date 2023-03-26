@@ -16,7 +16,11 @@ pub mod article {
     use crate::postgresql::postgresql_manager::Connect;
     use crate::logger::log::{Level, log};
     use serde_json::Value;
-    use crate::postgresql::models::model_article::article::{InsertArticle, InsertComment};
+    use crate::postgresql::models::model_article::article::{
+        InsertArticle,
+        InsertComment,
+        InsertReaction,
+    };
 
     #[post("/insert-article")]
     pub async fn insert_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
@@ -224,6 +228,152 @@ pub mod article {
 
         HttpResponse::Ok().json(
             json_success(articles)
+        )
+    }
+
+    #[post("/insert-reaction-for-article")]
+    pub async fn insert_reaction_for_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
+        let body = match read_body_bytes(&mut payload).await {
+            Ok(o) => o,
+            Err(_) => return HttpResponse::Ok().json(
+                json_error("Request overflow!")
+            )
+        };
+
+        let reaction = match serde_json::from_slice::<InsertReaction>(&body) {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[POST][insert-reaction-for-article] >>> serde_json::from_slice::<InsertReaction>",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error request!")
+                )
+            },
+        };
+
+        let exists = match conn.exists_reaction_for_article(&reaction).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[POST][insert-reaction-for-article] >>> conn.exists_reaction_for_article(&reaction)",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error")
+                );
+            }
+        };
+
+        if exists {
+            return HttpResponse::Ok().json(
+                json_error("Reaction already inserted!")
+            );
+        }
+
+        if let Err(e) = conn.insert_reaction_for_article(&reaction).await {
+            log(Level::Error, "[POST][insert-reaction-for-article] >>> conn.insert_reaction_for_article(&reaction)",
+                &format!("Handle: {}", e)
+            );
+
+            return HttpResponse::Ok().json(
+                json_error("Error")
+            );
+        }
+
+        HttpResponse::Ok().json(
+            json_success("Success")
+        )
+    }
+
+    #[get("/get-reaction-for-article-by-user")]
+    pub async fn get_reaction_for_article_by_user(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let article_id = match get_query_param::<i32>(&req, "article_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let name = match conn.get_reaction_for_article_by_user(user_id, article_id).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][get-reaction-for-article-by-user] >>> conn.get_reaction_for_article_by_user",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error!")
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(name)
+        )
+    }
+
+    #[post("/remove-reaction-for-article")]
+    pub async fn remove_reaction_for_article(conn: web::Data<Connect>, mut payload: web::Payload) -> impl Responder {
+        let body = match read_body_bytes(&mut payload).await {
+            Ok(o) => o,
+            Err(_) => return HttpResponse::Ok().json(
+                json_error("Request overflow!")
+            )
+        };
+
+        let reaction = match serde_json::from_slice::<InsertReaction>(&body) {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[POST][remove-reaction-for-article] >>> serde_json::from_slice::<InsertReaction>",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error request!")
+                )
+            },
+        };
+
+        let exists = match conn.exists_reaction_for_article(&reaction).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[POST][remove-reaction-for-article] >>> conn.exists_reaction_for_article(&reaction)",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error("Error")
+                );
+            }
+        };
+
+        if !exists {
+            return HttpResponse::Ok().json(
+                json_error("Reaction not found!")
+            );
+        }
+
+        if let Err(e) = conn.remove_reaction_for_article(&reaction).await {
+            log(Level::Error, "[POST][remove-reaction-for-article] >>> conn.remove_reaction_for_article(&reaction)",
+                &format!("Handle: {}", e)
+            );
+
+            return HttpResponse::Ok().json(
+                json_error("Error")
+            );
+        }
+
+        HttpResponse::Ok().json(
+            json_success("Success")
         )
     }
 }

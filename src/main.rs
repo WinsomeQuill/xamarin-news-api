@@ -13,7 +13,17 @@ use crate::services::service_user::user::{
     remove_following_user,
 };
 
-use crate::services::service_article::article::{insert_article, remove_article, get_articles, get_articles_from_user, get_article_comments, insert_article_comment};
+use crate::services::service_article::article::{
+    insert_article,
+    remove_article,
+    get_articles,
+    get_articles_from_user,
+    get_article_comments,
+    insert_article_comment,
+    insert_reaction_for_article,
+    remove_reaction_for_article,
+    get_reaction_for_article_by_user,
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -64,6 +74,9 @@ async fn main() -> std::io::Result<()> {
             .service(get_articles_from_user)
             .service(insert_article_comment)
             .service(get_article_comments)
+            .service(insert_reaction_for_article)
+            .service(remove_reaction_for_article)
+            .service(get_reaction_for_article_by_user)
             .default_service(web::to(|| {
                 HttpResponse::NotFound()
             }))

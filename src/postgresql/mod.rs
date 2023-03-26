@@ -7,7 +7,13 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
-    use crate::postgresql::models::model_article::article::{Article, Comment, InsertArticle, InsertComment};
+    use crate::postgresql::models::model_article::article::{
+        Article,
+        Comment,
+        InsertArticle,
+        InsertComment,
+        InsertReaction
+    };
 
 
     #[derive(Clone)]
@@ -52,42 +58,65 @@ pub mod postgresql_manager {
         ///Создаем все нужные таблицы, если их нет.
         pub async fn create_tables(&self) -> Result<(), sqlx::Error> {
             self.pool.execute(r#"
-                create table if not exists users (
-                    id serial4 primary key,
-                    first_name varchar(64) not null,
-                    last_name varchar(64) not null,
-                    about varchar(256) null,
-                    password varchar(64) not null,
-                    login varchar(64) not null,
-                    full_avatar text null,
-                    crop_avatar text null,
-                    date_registration timestamptz not null default now()::timestamp with time zone::timestamp
+                CREATE TABLE IF NOT EXISTS users (
+                    id serial4 PRIMARY KEY,
+                    first_name varchar(64) NOT NULL,
+                    last_name varchar(64) NOT NULL,
+                    about varchar(256) NULL,
+                    password varchar(64) NOT NULL,
+                    login varchar(64) NOT NULL,
+                    full_avatar text NULL,
+                    crop_avatar text NULL,
+                    date_registration timestamptz NOT NULL default now()::timestamp with time zone::timestamp
                 );
 
-                create table if not exists articles (
+                CREATE TABLE IF NOT EXISTS articles (
                     id serial4 PRIMARY KEY,
-                    author_id int4 not null references users(id) on delete cascade,
-                    image text not null,
-                    title varchar(64) not null,
-                    description varchar(1024) not null,
-                    publish_date timestamptz not null default now()::timestamp with time zone::timestamp,
-                    likes int4 null default 0,
-                    dislikes int4 null default 0
+                    author_id int4 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    image text NOT NULL,
+                    title varchar(64) NOT NULL,
+                    description varchar(1024) NOT NULL,
+                    publish_date timestamptz NOT NULL default now()::timestamp with time zone::timestamp
                 );
 
-                create table if not exists articles_comments (
+                CREATE TABLE IF NOT EXISTS articles_comments (
                     id serial4 PRIMARY KEY,
-                    users_id int4 not null references users(id) on delete cascade,
-                    articles_id int4 not null references articles(id) on delete cascade,
-                    publish_date timestamptz not null default now()::timestamp with time zone::timestamp,
-                    message varchar(1024) not null
+                    users_id int4 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    articles_id int4 NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                    publish_date timestamptz NOT NULL default now()::timestamp with time zone::timestamp,
+                    message varchar(1024) NOT NULL
                 );
 
-                create table if not exists users_followers (
+                CREATE TABLE IF NOT EXISTS users_followers (
                     id serial4 PRIMARY KEY,
-                    users_author_id int4 not null references users(id) on delete cascade,
-                    users_follower_id int4 not null references users(id) on delete cascade,
-                    follow_date timestamptz not null default now()::timestamp with time zone::timestamp
+                    users_author_id int4 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    users_follower_id int4 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    follow_date timestamptz NOT NULL default now()::timestamp with time zone::timestamp
+                );
+
+                CREATE TABLE IF NOT EXISTS reactions (
+                    id serial4 PRIMARY KEY,
+                    description varchar(16) NOT NULL
+                );
+
+                INSERT INTO reactions (description)
+                SELECT 'Нравится'
+                WHERE NOT EXISTS (
+                    SELECT description FROM reactions WHERE description = 'Нравится'
+                );
+
+                INSERT INTO reactions (description)
+                SELECT 'Не нравится'
+                WHERE NOT EXISTS (
+                    SELECT description FROM reactions WHERE description = 'Не нравится'
+                );
+
+                CREATE TABLE IF NOT EXISTS articles_reactions (
+                    id serial4 PRIMARY KEY,
+                    users_id int4 NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    articles_id int4 NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+                    reactions_id int4 NOT NULL REFERENCES reactions(id) ON DELETE CASCADE,
+                    date timestamptz NOT NULL default now()::timestamp with time zone::timestamp
                 );
             "#).await?;
 
@@ -333,15 +362,22 @@ pub mod postgresql_manager {
         /// ### Возвращает:
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
-            let articles = sqlx::query_as::<_, Article>("
+            let mut articles = sqlx::query_as::<_, Article>("
                 SELECT a.id AS article_id, image, title, description AS full_description,
-                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date, likes, dislikes,
+                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date,
                 u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id;
             ")
                 .fetch_all(&self.pool)
                 .await?;
+
+            for article in &mut articles {
+                let (likes, dislikes) = self.get_reactions_from_article(article.id).await.unwrap();
+                article.likes = likes;
+                article.dislikes = dislikes;
+            }
+
             Ok(articles)
         }
 
@@ -352,15 +388,19 @@ pub mod postgresql_manager {
         /// ### Возвращает:
         /// Если [`Ok`], то структура `Article`. При ошибки [`sqlx::Error`]
         pub async fn get_article_info(&self, article_id: i32) -> Result<Article, sqlx::Error> {
-            let article = sqlx::query_as::<_, Article>("
+            let mut article = sqlx::query_as::<_, Article>("
                 SELECT id AS article_id, author_id, image, title,
-                description AS full_description, concat(left(description, 150), '...') AS crop_description, publish_date, likes, dislikes
+                description AS full_description, concat(left(description, 150), '...') AS crop_description, publish_date
                 FROM articles AS a
                 WHERE id = $1;
             ")
                 .bind(article_id)
                 .fetch_one(&self.pool)
                 .await?;
+
+            let (likes, dislikes) = self.get_reactions_from_article(article.id).await.unwrap();
+            article.likes = likes;
+            article.dislikes = dislikes;
 
             Ok(article)
         }
@@ -412,9 +452,9 @@ pub mod postgresql_manager {
         /// ### Возвращает:
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
         pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
-            let row = sqlx::query_as::<_, Article>("
+            let mut articles = sqlx::query_as::<_, Article>("
                 SELECT a.id AS article_id, image, title, description AS full_description,
-                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date, likes, dislikes,
+                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date,
                 u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id
@@ -423,7 +463,13 @@ pub mod postgresql_manager {
                 .bind(user_id)
                 .fetch_all(&self.pool).await?;
 
-            Ok(row)
+            for article in &mut articles {
+                let (likes, dislikes) = self.get_reactions_from_article(article.id).await.unwrap();
+                article.likes = likes;
+                article.dislikes = dislikes;
+            }
+
+            Ok(articles)
         }
 
         /// Создаем комментарий к записи в базе данных
@@ -463,6 +509,133 @@ pub mod postgresql_manager {
                 .fetch_all(&self.pool).await?;
 
             Ok(row)
+        }
+
+        /// Получение реакций к записи
+        /// ### Принимает:
+        ///
+        /// ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `(i64, i64)`. При ошибки [`sqlx::Error`]
+        pub async fn get_reactions_from_article(&self, article_id: i32) -> Result<(i64, i64), sqlx::Error> {
+            let row = sqlx::query("
+                SELECT COUNT(ar.id)
+                FROM articles_reactions AS ar, reactions AS r
+                WHERE ar.articles_id = $1 AND ar.reactions_id = r.id AND r.description = 'Нравится';
+            ")
+                .bind(article_id)
+                .fetch_one(&self.pool).await?;
+
+            let likes: i64 = row.try_get("count").unwrap();
+
+            let row = sqlx::query("
+                SELECT COUNT(ar.id)
+                FROM articles_reactions AS ar, reactions AS r
+                WHERE ar.articles_id = $1 AND ar.reactions_id = r.id AND r.description = 'Не нравится';
+            ")
+                .bind(article_id)
+                .fetch_one(&self.pool).await?;
+
+            let dislikes: i64 = row.try_get("count").unwrap();
+
+            Ok((likes, dislikes))
+        }
+
+        /// Создание реакции к записи
+        /// ### Принимает:
+        ///
+        /// Структуру `InsertReaction`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn insert_reaction_for_article(&self, reaction: &InsertReaction) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                INSERT INTO articles_reactions
+                (users_id, articles_id, reactions_id)
+                VALUES($1, $2, (SELECT id FROM reactions WHERE description = $3));
+            ")
+                .bind(reaction.user_id)
+                .bind(reaction.article_id)
+                .bind(&reaction.reaction)
+                .execute(&self.pool).await?;
+
+            Ok(())
+        }
+
+        /// Удаление реакции к записи
+        /// ### Принимает:
+        ///
+        /// Структуру `InsertReaction`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `()`. При ошибки [`sqlx::Error`]
+        pub async fn remove_reaction_for_article(&self, reaction: &InsertReaction) -> Result<(), sqlx::Error> {
+            let _ = sqlx::query("
+                DELETE FROM articles_reactions AS ar
+                WHERE ar.users_id = $1 AND ar.articles_id = $2
+            ")
+                .bind(reaction.user_id)
+                .bind(reaction.article_id)
+                .execute(&self.pool).await?;
+
+            Ok(())
+        }
+
+        /// Проверка существования реакции к записи
+        /// ### Принимает:
+        ///
+        /// Структуру `InsertReaction`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `bool`. При ошибки [`sqlx::Error`]
+        pub async fn exists_reaction_for_article(&self, reaction: &InsertReaction) -> Result<bool, sqlx::Error> {
+            let row = sqlx::query("
+                SELECT ar.id
+                FROM articles_reactions AS ar
+                WHERE ar.users_id = $1 AND ar.articles_id = $2
+            ")
+                .bind(reaction.user_id)
+                .bind(reaction.article_id)
+                .fetch_one(&self.pool).await;
+
+            if let Err(sqlx::Error::RowNotFound) = row {
+                return Ok(false);
+            }
+
+            let row = row.unwrap();
+
+            Ok(row.try_get::<i32, _>("id").is_ok())
+        }
+
+        /// Получить реакцию пользователя на запись
+        /// ### Принимает:
+        ///
+        /// ID пользователя, ID записи
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `String`. При ошибки [`sqlx::Error`]
+        pub async fn get_reaction_for_article_by_user(&self, user_id: i32, article_id: i32) -> Result<Option<String>, sqlx::Error> {
+            let row = sqlx::query("
+                SELECT r.description
+                FROM articles_reactions AS ar, reactions AS r
+                WHERE ar.users_id = $1 AND ar.articles_id = $2 AND ar.reactions_id = r.id
+            ")
+                .bind(user_id)
+                .bind(article_id)
+                .fetch_one(&self.pool).await;
+
+            if let Err(sqlx::Error::RowNotFound) = row {
+                return Ok(None);
+            }
+
+            let row = row.unwrap();
+
+            if row.try_get::<String, _>("description").is_err() {
+                return Ok(None);
+            }
+
+            Ok(Some(row.get("description")))
         }
     }
 }

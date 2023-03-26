@@ -14,8 +14,10 @@ pub(crate) mod article {
         pub crop_description: String,
         pub full_description: String,
         pub publish_date: DateTime<Utc>,
-        pub likes: i32,
-        pub dislikes: i32,
+        #[sqlx(default)]
+        pub likes: i64,
+        #[sqlx(default)]
+        pub dislikes: i64,
     }
 
     #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -48,5 +50,12 @@ pub(crate) mod article {
         pub user_id: i32,
         pub article_id: i32,
         pub message: String,
+    }
+
+    #[derive(Clone, Eq, Hash, PartialEq, Debug, Serialize, Deserialize)]
+    pub struct InsertReaction {
+        pub user_id: i32,
+        pub article_id: i32,
+        pub reaction: String,
     }
 }
