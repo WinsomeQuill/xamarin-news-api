@@ -614,7 +614,7 @@ pub mod postgresql_manager {
         /// ID пользователя, ID записи
         ///
         /// ### Возвращает:
-        /// Если [`Ok`], то `String`. При ошибки [`sqlx::Error`]
+        /// Если [`Ok`], то `Option<String>`. При ошибки [`sqlx::Error`]
         pub async fn get_reaction_for_article_by_user(&self, user_id: i32, article_id: i32) -> Result<Option<String>, sqlx::Error> {
             let row = sqlx::query("
                 SELECT r.description
