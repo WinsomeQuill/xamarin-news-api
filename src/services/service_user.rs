@@ -404,4 +404,31 @@ pub mod user {
             json_success("Success")
         )
     }
+
+    #[get("/get-popular-users")]
+    pub async fn get_popular_users(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let result = match conn.get_popular_users(user_id).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][get-popular-users] >>> conn.get_popular_users",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error(false)
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(result)
+        )
+    }
 }

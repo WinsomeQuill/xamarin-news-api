@@ -14,6 +14,7 @@ pub mod postgresql_manager {
         InsertComment,
         InsertReaction
     };
+    use crate::postgresql::models::model_user::user::PopularUser;
 
 
     #[derive(Clone)]
@@ -635,6 +636,32 @@ pub mod postgresql_manager {
             }
 
             Ok(Some(row.get("description")))
+        }
+
+        /// Получить популярных пользователей
+        /// ### Принимает:
+        ///
+        /// ID пользователя
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `Vec<User>`. При ошибки [`sqlx::Error`]
+        pub async fn get_popular_users(&self, user_id: i32) -> Result<Vec<PopularUser>, sqlx::Error> {
+            let row = sqlx::query_as::<_, PopularUser>("
+                SELECT COUNT(u.id) AS followers, u.id AS user_id, first_name, last_name, about,
+                password, login, full_avatar, crop_avatar, date_registration
+                FROM users AS u, users_followers AS uf
+                WHERE uf.users_author_id = u.id AND u.id != $1
+                GROUP BY u.id
+                ORDER BY followers DESC
+            ")
+                .bind(user_id)
+                .fetch_all(&self.pool).await;
+
+            if let Err(sqlx::Error::RowNotFound) = row {
+                return Ok(Vec::with_capacity(0));
+            }
+
+            Ok(row.unwrap())
         }
     }
 }
