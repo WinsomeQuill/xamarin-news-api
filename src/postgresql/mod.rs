@@ -276,7 +276,7 @@ pub mod postgresql_manager {
         /// ID пользователя
         ///
         /// ### Возвращает:
-        /// Если [`Ok`], то число подписчиков (`i64`). При ошибки [`sqlx::Error`]
+        /// Если [`Ok`], то число подписчиков `i64`. При ошибки [`sqlx::Error`]
         pub async fn get_user_count_followers(&self, user_id: i32) -> Result<i64, sqlx::Error> {
             let row = sqlx::query("
                 SELECT COUNT(uf.users_follower_id)
