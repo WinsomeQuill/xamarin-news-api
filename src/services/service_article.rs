@@ -60,8 +60,15 @@ pub mod article {
     }
 
     #[get("/get-articles")]
-    pub async fn get_articles(conn: web::Data<Connect>) -> impl Responder {
-        let articles = match conn.get_articles().await {
+    pub async fn get_articles(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::BadRequest().json(
+                json_error(e)
+            )
+        };
+
+        let articles = match conn.get_articles(user_id).await {
             Ok(o) => o,
             Err(e) => {
                 log(Level::Error, "[GET][get-articles] >>> conn.get_articles",

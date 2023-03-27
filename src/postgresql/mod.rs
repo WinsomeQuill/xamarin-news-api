@@ -358,17 +358,21 @@ pub mod postgresql_manager {
             Ok(())
         }
 
-        /// Получить записи из базе данных
+        /// Получить записи из базы данных на основе подписок пользователя
+        /// ### Принимает:
+        /// ID пользователя
+        ///
         /// ### Возвращает:
         /// Если [`Ok`], то `Vec<Article>`. При ошибки [`sqlx::Error`]
-        pub async fn get_articles(&self) -> Result<Vec<Article>, sqlx::Error> {
+        pub async fn get_articles(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
             let mut articles = sqlx::query_as::<_, Article>("
                 SELECT a.id AS article_id, image, title, description AS full_description,
                 CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date,
                 u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
-                FROM articles as a, users as u
-                WHERE a.author_id = u.id;
+                FROM articles AS a, users AS u, users_followers AS uf
+                WHERE uf.users_author_id = u.id AND uf.users_follower_id = $1 AND a.author_id = u.id;
             ")
+                .bind(user_id)
                 .fetch_all(&self.pool)
                 .await?;
 
