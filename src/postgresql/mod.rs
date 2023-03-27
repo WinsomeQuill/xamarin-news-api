@@ -7,6 +7,7 @@ pub mod postgresql_manager {
         User,
         RegisterUser,
     };
+    use crate::logger::log::{Level, log};
     use crate::postgresql::models::model_article::article::{
         Article,
         Comment,
@@ -666,6 +667,66 @@ pub mod postgresql_manager {
             }
 
             Ok(row.unwrap())
+        }
+
+        /// Получить популярных пользователей
+        /// ### Принимает:
+        ///
+        /// ID пользователя, ключевое слово - `&str`
+        ///
+        /// ### Возвращает:
+        /// Если [`Ok`], то `Vec<PopularUser>`. При ошибки [`sqlx::Error`]
+        pub async fn find_user_by_key_words(&self, user_id: i32, word: &str) -> Result<Vec<PopularUser>, sqlx::Error> {
+            let words = word.split(' ').collect::<Vec<&str>>();
+
+            if words.is_empty() {
+                return Ok(Vec::with_capacity(0));
+            }
+
+            let query = match words.len() {
+                1 => {
+                    format!(r#"
+                        SELECT CAST(0 AS int8) AS followers, u.id AS user_id, u.first_name, u.last_name, u.about,
+                        u.password, u.login, u.full_avatar, u.crop_avatar, u.date_registration
+                        FROM users AS u
+                        WHERE u.first_name LIKE '%{0}%' AND u.last_name LIKE '%{1}%' AND u.id != {2}
+                        OR u.first_name LIKE '%{1}%' AND u.last_name LIKE '%{0}%' AND u.id != {2};
+                    "#, words[0], String::new(), user_id)
+                },
+                _ => {
+                    format!(r#"
+                        SELECT CAST(0 AS int8) AS followers, u.id AS user_id, u.first_name, u.last_name, u.about,
+                        u.password, u.login, u.full_avatar, u.crop_avatar, u.date_registration
+                        FROM users AS u
+                        WHERE u.first_name LIKE '%{0}%' AND u.last_name LIKE '%{1}%' AND u.id != {2}
+                        OR u.first_name LIKE '%{1}%' AND u.last_name LIKE '%{0}%' AND u.id != {2};
+                    "#, words[0], words[1], user_id)
+                },
+            };
+
+            let row = sqlx::query_as::<_, PopularUser>(&query)
+                .fetch_all(&self.pool)
+                .await;
+
+            if let Err(sqlx::Error::RowNotFound) = row {
+                return Ok(Vec::with_capacity(0));
+            }
+
+            let mut row = row.unwrap();
+
+            for user in &mut row {
+                let followers = self.get_user_count_followers(user.id).await;
+
+                if let Err(e) = &followers {
+                    log(Level::Error, "[PostgresSQL][find_user_by_key_words] >>> get_user_count_followers",
+                        &format!("Handle: {}", e)
+                    );
+                }
+
+                user.followers = followers.unwrap();
+            }
+
+            Ok(row)
         }
     }
 }

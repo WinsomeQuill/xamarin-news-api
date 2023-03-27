@@ -431,4 +431,38 @@ pub mod user {
             json_success(result)
         )
     }
+
+    #[get("/find-user-by-key-words")]
+    pub async fn find_user_by_key_words(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::Ok().json(
+                json_error(e)
+            )
+        };
+
+        let words = match get_query_param::<String>(&req, "words").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::Ok().json(
+                json_error(e)
+            )
+        };
+
+        let count = match conn.find_user_by_key_words(user_id, &words).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][find-user-by-key-words] >>> conn.find_user_by_key_words",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error(0)
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(count)
+        )
+    }
 }
