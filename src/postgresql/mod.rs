@@ -279,10 +279,9 @@ pub mod postgresql_manager {
         /// Если [`Ok`], то число подписчиков (`i64`). При ошибки [`sqlx::Error`]
         pub async fn get_user_count_followers(&self, user_id: i32) -> Result<i64, sqlx::Error> {
             let row = sqlx::query("
-                select COUNT(uf.users_follower_id)
-                from users as u, users_followers as uf
-                where u.id = $1 and uf.users_author_id = u.id
-                group by u.id
+                SELECT COUNT(uf.users_follower_id)
+                FROM users AS u, users_followers AS uf
+                WHERE uf.id = u.id AND uf.users_author_id = $1;
             ")
                 .bind(user_id)
                 .fetch_one(&self.pool).await;
