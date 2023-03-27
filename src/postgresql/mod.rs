@@ -282,7 +282,7 @@ pub mod postgresql_manager {
             let row = sqlx::query("
                 SELECT COUNT(uf.users_follower_id)
                 FROM users AS u, users_followers AS uf
-                WHERE uf.id = u.id AND uf.users_author_id = $1;
+                WHERE uf.users_author_id = $1 AND uf.users_author_id = u.id;
             ")
                 .bind(user_id)
                 .fetch_one(&self.pool).await;
