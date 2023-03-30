@@ -459,11 +459,13 @@ pub mod postgresql_manager {
         pub async fn get_articles_from_user(&self, user_id: i32) -> Result<Vec<Article>, sqlx::Error> {
             let mut articles = sqlx::query_as::<_, Article>("
                 SELECT a.id AS article_id, image, title, description AS full_description,
-                CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date,
-                u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
+                       CONCAT(LEFT(description, 150), '...') AS crop_description, publish_date,
+                       u.id AS user_id, first_name, last_name, about, password, login, full_avatar, crop_avatar, date_registration
                 FROM articles as a, users as u
                 WHERE a.author_id = u.id
-                AND u.id = $1;
+                  AND u.id = $1
+                GROUP BY a.id, u.id
+                ORDER BY a.id DESC;
             ")
                 .bind(user_id)
                 .fetch_all(&self.pool).await?;
