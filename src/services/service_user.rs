@@ -83,6 +83,12 @@ pub mod user {
             )
         };
 
+        if !conn.exist_user_by_login(&login).await.unwrap() {
+            return HttpResponse::Ok().json(
+                json_error("User not found!")
+            );
+        }
+
         let user = match conn.get_user_by_login_and_pass(&login, &password).await {
             Ok(o) => o,
             Err(e) => {
@@ -429,6 +435,40 @@ pub mod user {
 
         HttpResponse::Ok().json(
             json_success(result)
+        )
+    }
+
+    #[get("/find-user-by-key-words")]
+    pub async fn find_user_by_key_words(conn: web::Data<Connect>, req: HttpRequest) -> impl Responder {
+        let user_id = match get_query_param::<i32>(&req, "user_id").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::Ok().json(
+                json_error(e)
+            )
+        };
+
+        let words = match get_query_param::<String>(&req, "words").await {
+            Ok(o) => o,
+            Err(e) => return HttpResponse::Ok().json(
+                json_error(e)
+            )
+        };
+
+        let count = match conn.find_user_by_key_words(user_id, &words).await {
+            Ok(o) => o,
+            Err(e) => {
+                log(Level::Error, "[GET][find-user-by-key-words] >>> conn.find_user_by_key_words",
+                    &format!("Handle: {}", e)
+                );
+
+                return HttpResponse::Ok().json(
+                    json_error(0)
+                );
+            },
+        };
+
+        HttpResponse::Ok().json(
+            json_success(count)
         )
     }
 }

@@ -12,6 +12,7 @@ use crate::services::service_user::user::{
     following_user,
     remove_following_user,
     get_popular_users,
+    find_user_by_key_words,
 };
 
 use crate::services::service_article::article::{
@@ -69,6 +70,7 @@ async fn main() -> std::io::Result<()> {
             .service(following_user)
             .service(remove_following_user)
             .service(get_popular_users)
+            .service(find_user_by_key_words)
             // Article service
             .service(insert_article)
             .service(remove_article)
