@@ -67,8 +67,8 @@ pub mod postgresql_manager {
                     about varchar(256) NULL,
                     password varchar(64) NOT NULL,
                     login varchar(64) NOT NULL,
-                    full_avatar text NULL,
-                    crop_avatar text NULL,
+                    full_avatar bytea NULL,
+                    crop_avatar bytea NULL,
                     date_registration timestamptz NOT NULL default now()::timestamp with time zone::timestamp
                 );
 
@@ -159,9 +159,13 @@ pub mod postgresql_manager {
                 WHERE login = $1
             ")
                 .bind(login)
-                .fetch_one(&self.pool).await?;
+                .fetch_one(&self.pool).await;
 
-            Ok(row.try_get::<i32, _>("id").is_ok())
+            if let Err(sqlx::Error::RowNotFound) = row {
+                return Ok(false);
+            }
+
+            Ok(row.unwrap().try_get::<i32, _>("id").is_ok())
         }
 
         /// Получение данных пользователя по логину и паролю.

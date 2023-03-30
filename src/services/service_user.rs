@@ -83,6 +83,12 @@ pub mod user {
             )
         };
 
+        if !conn.exist_user_by_login(&login).await.unwrap() {
+            return HttpResponse::Ok().json(
+                json_error("User not found!")
+            );
+        }
+
         let user = match conn.get_user_by_login_and_pass(&login, &password).await {
             Ok(o) => o,
             Err(e) => {
